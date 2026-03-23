@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: chiefofstaff-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chiefofstaff
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chiefofstaff"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Application (development)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: chiefofstaff-app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chiefofstaff
+      - NEXTAUTH_URL=http://localhost:3000
+      - NODE_ENV=development
+    env_file:
+      - .env.local
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: pnpm dev
+
+  # Background Worker (development)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: chiefofstaff-worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/chiefofstaff
+      - NODE_ENV=development
+    env_file:
+      - .env.local
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: pnpm worker
+
+volumes:
+  postgres_data:
