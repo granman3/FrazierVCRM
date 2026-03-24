@@ -24,4 +24,8 @@ Thumbs.db
 # Build / output
 dist/
 build/
+.next/
 *.log
+
+# Claude Code
+.claude/
