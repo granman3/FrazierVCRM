@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['pg-boss', 'sodium-native'],
+    serverComponentsExternalPackages: ["pino", "pino-pretty"],
   },
 };
 

@@ -1,132 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/db";
-import { vipList, contactsMerged, auditLog } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/db";
+import { vips, contacts } from "@/db/schema";
 
-/**
- * GET: List active VIPs
- */
-export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const vips = await db.query.vipList.findMany({
-    where: and(
-      eq(vipList.tenantId, session.user.tenantId),
-      isNull(vipList.removedAt)
-    ),
-    with: {
-      contact: true,
-    },
-    orderBy: (vips, { desc }) => [desc(vips.addedAt)],
-  });
-
-  return NextResponse.json({
-    vips: vips.map((v) => ({
-      id: v.id,
-      category: v.category,
-      addedAt: v.addedAt,
-      addedBy: v.addedBy,
-      contact: v.contact
-        ? {
-            id: v.contact.id,
-            fullName: v.contact.fullName,
-            company: v.contact.company,
-            title: v.contact.title,
-            email: v.contact.email,
-            linkedinUrl: v.contact.linkedinUrl,
-          }
-        : null,
-    })),
-  });
-}
-
-const addVipSchema = z.object({
-  contactId: z.string().uuid(),
-  category: z.string().optional(),
+const patchVipSchema = z.object({
+  id: z.string().uuid(),
+  action: z.enum(["approve", "reject", "toggle"]),
 });
 
-/**
- * POST: Manually add a contact to VIP list
- */
-export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.tenantId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body;
+export async function GET(request: NextRequest) {
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    const db = getDb(process.env.DATABASE_URL!);
+    const { searchParams } = new URL(request.url);
+    const activeParam = searchParams.get("active");
+
+    const baseQuery = db
+      .select({
+        id: vips.id,
+        contactId: vips.contactId,
+        confidence: vips.confidence,
+        reason: vips.reason,
+        category: vips.category,
+        autoApproved: vips.autoApproved,
+        active: vips.active,
+        addedAt: vips.addedAt,
+        removedAt: vips.removedAt,
+        contactName: contacts.fullName,
+        contactEmail: contacts.email,
+        contactCompany: contacts.company,
+        contactTitle: contacts.title,
+        contactPhotoUrl: contacts.photoUrl,
+      })
+      .from(vips)
+      .innerJoin(contacts, eq(vips.contactId, contacts.id));
+
+    const rows = activeParam !== null
+      ? await baseQuery.where(eq(vips.active, activeParam === "true"))
+      : await baseQuery;
+
+    return NextResponse.json({ data: rows });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ data: null, error: message }, { status: 500 });
   }
+}
 
-  const parsed = addVipSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten() },
-      { status: 400 }
-    );
+export async function PATCH(request: NextRequest) {
+  try {
+    const db = getDb(process.env.DATABASE_URL!);
+    const body = await request.json();
+    const { id, action } = patchVipSchema.parse(body);
+
+    const [existing] = await db
+      .select()
+      .from(vips)
+      .where(eq(vips.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ data: null, error: "VIP not found" }, { status: 404 });
+    }
+
+    let newActive: boolean;
+    if (action === "approve") {
+      newActive = true;
+    } else if (action === "reject") {
+      newActive = false;
+    } else {
+      newActive = !existing.active;
+    }
+
+    const [updated] = await db
+      .update(vips)
+      .set({
+        active: newActive,
+        removedAt: newActive ? null : new Date(),
+      })
+      .where(eq(vips.id, id))
+      .returning();
+
+    return NextResponse.json({ data: updated });
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ data: null, error: error.errors }, { status: 400 });
+    }
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ data: null, error: message }, { status: 500 });
   }
-
-  const { contactId, category } = parsed.data;
-
-  // Verify contact exists and belongs to tenant
-  const contact = await db.query.contactsMerged.findFirst({
-    where: and(
-      eq(contactsMerged.id, contactId),
-      eq(contactsMerged.tenantId, session.user.tenantId)
-    ),
-  });
-
-  if (!contact) {
-    return NextResponse.json({ error: "Contact not found" }, { status: 404 });
-  }
-
-  // Add to VIP list
-  const [vip] = await db
-    .insert(vipList)
-    .values({
-      tenantId: session.user.tenantId,
-      contactId,
-      category: category || "other",
-      addedBy: "manual",
-    })
-    .onConflictDoUpdate({
-      target: [vipList.tenantId, vipList.contactId],
-      set: {
-        removedAt: null,
-        category: category || "other",
-        addedBy: "manual",
-        addedAt: new Date(),
-      },
-    })
-    .returning();
-
-  // Audit log
-  await db.insert(auditLog).values({
-    tenantId: session.user.tenantId,
-    userId: session.user.id,
-    action: "vip.added",
-    targetType: "vip",
-    targetId: vip.id,
-    metadata: { contactId, category },
-  });
-
-  return NextResponse.json({
-    success: true,
-    vip: {
-      id: vip.id,
-      contactId: vip.contactId,
-      category: vip.category,
-    },
-  });
 }

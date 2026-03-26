@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   integer,
+  bigint,
   jsonb,
   real,
   uniqueIndex,
@@ -15,49 +16,33 @@ import {
 import { relations } from "drizzle-orm";
 
 // ============================================================================
-// TENANTS & USERS
+// USERS
 // ============================================================================
-
-export const tenants = pgTable("tenants", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: varchar("name", { length: 255 }).notNull(),
-  status: varchar("status", { length: 20 }).notNull().default("active"), // active, suspended, deleted
-  timezone: varchar("timezone", { length: 50 }).default("America/New_York"),
-  setupCompletedAt: timestamp("setup_completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id").references(() => tenants.id),
     email: varchar("email", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }),
     image: text("image"),
-    role: varchar("role", { length: 20 }).notNull().default("member"), // member, admin, platform_admin
+    role: varchar("role", { length: 20 }).notNull().default("member"),
     emailVerified: timestamp("email_verified"),
+    lastLoginAt: timestamp("last_login_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
     emailIdx: uniqueIndex("users_email_idx").on(table.email),
-    tenantIdx: index("users_tenant_idx").on(table.tenantId),
   })
 );
 
-// ============================================================================
-// NEXTAUTH TABLES
-// ============================================================================
-
+// NextAuth tables
 export const accounts = pgTable(
   "accounts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     type: varchar("type", { length: 255 }).notNull(),
     provider: varchar("provider", { length: 255 }).notNull(),
     providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
@@ -70,9 +55,7 @@ export const accounts = pgTable(
     session_state: varchar("session_state", { length: 255 }),
   },
   (table) => ({
-    providerProviderAccountIdIdx: uniqueIndex(
-      "accounts_provider_provider_account_id_idx"
-    ).on(table.provider, table.providerAccountId),
+    providerIdx: uniqueIndex("accounts_provider_idx").on(table.provider, table.providerAccountId),
   })
 );
 
@@ -81,15 +64,11 @@ export const sessions = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     sessionToken: varchar("session_token", { length: 255 }).notNull(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     expires: timestamp("expires").notNull(),
   },
   (table) => ({
-    sessionTokenIdx: uniqueIndex("sessions_session_token_idx").on(
-      table.sessionToken
-    ),
+    tokenIdx: uniqueIndex("sessions_token_idx").on(table.sessionToken),
   })
 );
 
@@ -106,284 +85,325 @@ export const verificationTokens = pgTable(
 );
 
 // ============================================================================
-// INVITES
-// ============================================================================
-
-export const invites = pgTable(
-  "invites",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id").references(() => tenants.id),
-    type: varchar("type", { length: 20 }).notNull(), // tenant (join existing) or platform (create new)
-    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
-    email: varchar("email", { length: 255 }), // Optional: pre-fill email
-    role: varchar("role", { length: 20 }).default("member"), // Role to assign when accepted
-    createdBy: uuid("created_by").references(() => users.id),
-    expiresAt: timestamp("expires_at").notNull(),
-    acceptedAt: timestamp("accepted_at"),
-    acceptedBy: uuid("accepted_by").references(() => users.id),
-    revokedAt: timestamp("revoked_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    tokenHashIdx: uniqueIndex("invites_token_hash_idx").on(table.tokenHash),
-  })
-);
-
-// ============================================================================
 // CONTACTS
 // ============================================================================
 
-export const contactsSnapshot = pgTable(
-  "contacts_snapshot",
+export const contacts = pgTable(
+  "contacts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    sourceType: varchar("source_type", { length: 20 }).notNull(), // icloud, google, csv
-    sourceId: varchar("source_id", { length: 255 }).notNull(), // UID from source
+    sourceType: varchar("source_type", { length: 20 }).notNull(),
+    sourceId: varchar("source_id", { length: 255 }).notNull(),
     fullName: varchar("full_name", { length: 255 }).notNull(),
     company: varchar("company", { length: 255 }),
     title: varchar("title", { length: 255 }),
     email: varchar("email", { length: 255 }),
     phone: varchar("phone", { length: 50 }),
     linkedinUrl: text("linkedin_url"),
-    rawData: jsonb("raw_data"), // Original vCard or API response
+    crunchbaseUrl: text("crunchbase_url"),
+    photoUrl: text("photo_url"),
+    rawData: jsonb("raw_data"),
     lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
-    lastEnrichedAt: timestamp("last_enriched_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    sourceIdx: uniqueIndex("contacts_source_idx").on(
-      table.tenantId,
-      table.sourceType,
-      table.sourceId
-    ),
-    emailIdx: index("contacts_email_idx").on(table.tenantId, table.email),
-    linkedinIdx: index("contacts_linkedin_idx").on(table.tenantId, table.linkedinUrl),
-    nameCompanyIdx: index("contacts_name_company_idx").on(
-      table.tenantId,
-      table.fullName,
-      table.company
-    ),
+    sourceIdx: uniqueIndex("contacts_source_idx").on(table.sourceType, table.sourceId),
+    emailIdx: index("contacts_email_idx").on(table.email),
+    nameCompanyIdx: index("contacts_name_company_idx").on(table.fullName, table.company),
   })
 );
 
-export const contactsMerged = pgTable(
-  "contacts_merged",
+// ============================================================================
+// COMPANIES
+// ============================================================================
+
+export const companies = pgTable(
+  "companies",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    primarySnapshotId: uuid("primary_snapshot_id")
-      .notNull()
-      .references(() => contactsSnapshot.id),
-    linkedSnapshotIds: jsonb("linked_snapshot_ids").$type<string[]>().default([]),
-    fullName: varchar("full_name", { length: 255 }).notNull(),
-    company: varchar("company", { length: 255 }),
-    title: varchar("title", { length: 255 }),
-    email: varchar("email", { length: 255 }),
-    phone: varchar("phone", { length: 50 }),
+    name: varchar("name", { length: 255 }).notNull(),
+    domain: varchar("domain", { length: 255 }),
+    crunchbaseUrl: text("crunchbase_url"),
     linkedinUrl: text("linkedin_url"),
+    logoUrl: text("logo_url"),
+    sector: varchar("sector", { length: 100 }),
+    stage: varchar("stage", { length: 50 }),
+    status: varchar("status", { length: 30 }).notNull().default("active"),
+    headcount: integer("headcount"),
+    foundedYear: integer("founded_year"),
+    hqLocation: varchar("hq_location", { length: 255 }),
+    description: text("description"),
+    lastFundingDate: timestamp("last_funding_date"),
+    lastFundingAmount: bigint("last_funding_amount", { mode: "number" }),
+    totalRaised: bigint("total_raised", { mode: "number" }),
+    metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    tenantIdx: index("contacts_merged_tenant_idx").on(table.tenantId),
+    nameIdx: uniqueIndex("companies_name_idx").on(table.name),
+    statusIdx: index("companies_status_idx").on(table.status),
+    sectorIdx: index("companies_sector_idx").on(table.sector),
   })
 );
 
 // ============================================================================
-// VIP CLASSIFICATION
+// COMPANY EMPLOYEES
 // ============================================================================
 
-export const vipCandidates = pgTable(
-  "vip_candidates",
+export const companyEmployees = pgTable(
+  "company_employees",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    contactId: uuid("contact_id")
-      .notNull()
-      .references(() => contactsMerged.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }),
+    department: varchar("department", { length: 100 }),
+    startedAt: timestamp("started_at"),
+    endedAt: timestamp("ended_at"),
+    isKeyPerson: boolean("is_key_person").notNull().default(false),
+    source: varchar("source", { length: 30 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    companyActiveIdx: index("ce_company_active_idx").on(table.companyId, table.endedAt),
+    contactIdx: index("ce_contact_idx").on(table.contactId),
+    uniqueEmployment: uniqueIndex("ce_unique_idx").on(table.companyId, table.contactId, table.startedAt),
+  })
+);
+
+// ============================================================================
+// FUNDING ROUNDS
+// ============================================================================
+
+export const fundingRounds = pgTable(
+  "funding_rounds",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    roundType: varchar("round_type", { length: 50 }).notNull(),
+    amount: bigint("amount", { mode: "number" }),
+    valuation: bigint("valuation", { mode: "number" }),
+    date: timestamp("date"),
+    leadInvestors: jsonb("lead_investors").$type<string[]>(),
+    allInvestors: jsonb("all_investors").$type<string[]>(),
+    frazierParticipated: boolean("frazier_participated").notNull().default(false),
+    source: varchar("source", { length: 30 }),
+    sourceUrl: text("source_url"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    companyIdx: index("fr_company_idx").on(table.companyId),
+    dateIdx: index("fr_date_idx").on(table.date),
+  })
+);
+
+// ============================================================================
+// DEALS (Investment Pipeline)
+// ============================================================================
+
+export const deals = pgTable(
+  "deals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    dealName: varchar("deal_name", { length: 255 }).notNull(),
+    stage: varchar("stage", { length: 50 }).notNull().default("sourced"),
+    assignedTo: uuid("assigned_to").references(() => users.id),
+    source: varchar("source", { length: 100 }),
+    sector: varchar("sector", { length: 100 }),
+    checkSize: bigint("check_size", { mode: "number" }),
+    valuation: bigint("valuation", { mode: "number" }),
+    notes: text("notes"),
+    stageUpdatedAt: timestamp("stage_updated_at").defaultNow().notNull(),
+    closedAt: timestamp("closed_at"),
+    passedAt: timestamp("passed_at"),
+    passReason: text("pass_reason"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    stageIdx: index("deals_stage_idx").on(table.stage),
+    companyIdx: index("deals_company_idx").on(table.companyId),
+    assignedIdx: index("deals_assigned_idx").on(table.assignedTo),
+  })
+);
+
+// ============================================================================
+// INTERACTIONS
+// ============================================================================
+
+export const interactions = pgTable(
+  "interactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    companyId: uuid("company_id").references(() => companies.id),
+    userId: uuid("user_id").references(() => users.id),
+    type: varchar("type", { length: 30 }).notNull(),
+    subject: varchar("subject", { length: 500 }),
+    body: text("body"),
+    occurredAt: timestamp("occurred_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    contactIdx: index("interactions_contact_idx").on(table.contactId),
+    companyIdx: index("interactions_company_idx").on(table.companyId),
+    occurredIdx: index("interactions_occurred_idx").on(table.occurredAt),
+  })
+);
+
+// ============================================================================
+// TAGS
+// ============================================================================
+
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 100 }).notNull(),
+    color: varchar("color", { length: 7 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    nameIdx: uniqueIndex("tags_name_idx").on(table.name),
+  })
+);
+
+export const contactTags = pgTable(
+  "contact_tags",
+  {
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.contactId, table.tagId] }),
+  })
+);
+
+export const companyTags = pgTable(
+  "company_tags",
+  {
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.companyId, table.tagId] }),
+  })
+);
+
+// ============================================================================
+// VIPS
+// ============================================================================
+
+export const vips = pgTable(
+  "vips",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
     confidence: real("confidence").notNull(),
     reason: text("reason").notNull(),
-    category: varchar("category", { length: 30 }).notNull(), // portfolio_founder, lp, coinvestor, etc.
-    suggestedAt: timestamp("suggested_at").defaultNow().notNull(),
-    approved: boolean("approved"), // null = pending, true = approved, false = rejected
-    reviewedAt: timestamp("reviewed_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    tenantContactIdx: uniqueIndex("vip_candidates_tenant_contact_idx").on(
-      table.tenantId,
-      table.contactId
-    ),
-    pendingIdx: index("vip_candidates_pending_idx").on(table.tenantId, table.approved),
-  })
-);
-
-export const vipList = pgTable(
-  "vip_list",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    contactId: uuid("contact_id")
-      .notNull()
-      .references(() => contactsMerged.id, { onDelete: "cascade" }),
-    category: varchar("category", { length: 30 }),
+    category: varchar("category", { length: 30 }).notNull(),
+    autoApproved: boolean("auto_approved").notNull().default(false),
+    active: boolean("active").notNull().default(true),
     addedAt: timestamp("added_at").defaultNow().notNull(),
-    addedBy: varchar("added_by", { length: 50 }), // 'user_approval', 'manual', etc.
     removedAt: timestamp("removed_at"),
   },
   (table) => ({
-    tenantContactIdx: uniqueIndex("vip_list_tenant_contact_idx").on(
-      table.tenantId,
-      table.contactId
-    ),
-    activeIdx: index("vip_list_active_idx").on(table.tenantId, table.removedAt),
+    contactIdx: uniqueIndex("vips_contact_idx").on(table.contactId),
+    activeIdx: index("vips_active_idx").on(table.active),
   })
 );
 
 // ============================================================================
-// NEWS & OUTREACH
+// NEWS
 // ============================================================================
 
 export const newsItems = pgTable(
   "news_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
     urlHash: varchar("url_hash", { length: 64 }).notNull(),
     headline: text("headline").notNull(),
     url: text("url").notNull(),
     source: varchar("source", { length: 100 }),
     company: varchar("company", { length: 255 }),
-    category: varchar("category", { length: 30 }), // funding, acquisition, product_launch, etc.
+    contactId: uuid("contact_id").references(() => contacts.id),
+    category: varchar("category", { length: 30 }),
     snippet: text("snippet"),
     publishedAt: timestamp("published_at"),
     fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
   },
   (table) => ({
-    urlHashIdx: uniqueIndex("news_items_url_hash_idx").on(
-      table.tenantId,
-      table.urlHash
-    ),
-    companyIdx: index("news_items_company_idx").on(table.tenantId, table.company),
+    urlHashIdx: uniqueIndex("news_items_url_hash_idx").on(table.urlHash),
+    companyIdx: index("news_items_company_idx").on(table.company),
   })
 );
+
+// ============================================================================
+// OUTREACH LOG
+// ============================================================================
 
 export const outreachLog = pgTable(
   "outreach_log",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    contactId: uuid("contact_id")
-      .notNull()
-      .references(() => contactsMerged.id),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id),
     newsItemId: uuid("news_item_id").references(() => newsItems.id),
-    triggerType: varchar("trigger_type", { length: 30 }).notNull(), // job_change, news, manual
+    triggerType: varchar("trigger_type", { length: 30 }).notNull(),
     draftText: text("draft_text").notNull(),
-    draftSentAt: timestamp("draft_sent_at").defaultNow().notNull(),
-    deliveryMethod: varchar("delivery_method", { length: 30 }).notNull(), // email_digest
-    deliveryPayload: jsonb("delivery_payload"), // email message ID, etc.
+    sentAt: timestamp("sent_at").defaultNow().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    contactIdx: index("outreach_log_contact_idx").on(table.tenantId, table.contactId),
-    newsItemIdx: index("outreach_log_news_idx").on(table.tenantId, table.newsItemId),
-    sentAtIdx: index("outreach_log_sent_at_idx").on(table.tenantId, table.draftSentAt),
+    contactIdx: index("outreach_log_contact_idx").on(table.contactId),
+    sentAtIdx: index("outreach_log_sent_at_idx").on(table.sentAt),
   })
 );
 
 // ============================================================================
-// INTEGRATION SECRETS
+// PIPELINE RUNS
 // ============================================================================
 
-export const integrationSecrets = pgTable(
-  "integration_secrets",
+export const runs = pgTable(
+  "runs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    integrationType: varchar("integration_type", { length: 30 }).notNull(), // carddav, google_contacts, proxycurl
-    encryptedPayload: text("encrypted_payload").notNull(),
-    lastTestedAt: timestamp("last_tested_at"),
-    testStatus: varchar("test_status", { length: 20 }), // success, failed, pending
-    testError: text("test_error"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    rotatedAt: timestamp("rotated_at"),
-    revokedAt: timestamp("revoked_at"),
-  },
-  (table) => ({
-    tenantTypeIdx: uniqueIndex("integration_secrets_tenant_type_idx").on(
-      table.tenantId,
-      table.integrationType
-    ),
-  })
-);
-
-// ============================================================================
-// AUTOMATION RUNS
-// ============================================================================
-
-export const automationRuns = pgTable(
-  "automation_runs",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id")
-      .notNull()
-      .references(() => tenants.id, { onDelete: "cascade" }),
-    workflowName: varchar("workflow_name", { length: 50 }).notNull(), // contacts-sync, vip-classifier, chief-of-staff
     startedAt: timestamp("started_at").defaultNow().notNull(),
     finishedAt: timestamp("finished_at"),
-    status: varchar("status", { length: 20 }).notNull().default("running"), // running, success, partial, failed
-    vipsConsidered: integer("vips_considered").default(0),
+    status: varchar("status", { length: 20 }).notNull().default("running"),
+    contactsSynced: integer("contacts_synced").default(0),
+    vipsProcessed: integer("vips_processed").default(0),
     draftsCreated: integer("drafts_created").default(0),
-    skippedNoSignal: integer("skipped_no_signal").default(0),
     errorSummary: text("error_summary"),
-    metadata: jsonb("metadata"), // Additional run details
   },
   (table) => ({
-    tenantIdx: index("automation_runs_tenant_idx").on(table.tenantId),
-    startedAtIdx: index("automation_runs_started_at_idx").on(
-      table.tenantId,
-      table.startedAt
-    ),
+    startedAtIdx: index("runs_started_at_idx").on(table.startedAt),
   })
 );
 
 // ============================================================================
-// AUDIT LOG
+// DEPARTURE ALERTS
 // ============================================================================
 
-export const auditLog = pgTable(
-  "audit_log",
+export const departureAlerts = pgTable(
+  "departure_alerts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    tenantId: uuid("tenant_id").references(() => tenants.id),
-    userId: uuid("user_id").references(() => users.id),
-    action: varchar("action", { length: 50 }).notNull(), // credential_created, credential_rotated, etc.
-    targetType: varchar("target_type", { length: 50 }),
-    targetId: varchar("target_id", { length: 255 }),
-    metadata: jsonb("metadata"),
-    ipAddress: varchar("ip_address", { length: 45 }),
-    userAgent: text("user_agent"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    companyEmployeeId: uuid("company_employee_id").notNull().references(() => companyEmployees.id),
+    contactId: uuid("contact_id").notNull().references(() => contacts.id),
+    companyId: uuid("company_id").notNull().references(() => companies.id),
+    previousTitle: varchar("previous_title", { length: 255 }),
+    detectedAt: timestamp("detected_at").defaultNow().notNull(),
+    acknowledged: boolean("acknowledged").notNull().default(false),
+    acknowledgedBy: uuid("acknowledged_by").references(() => users.id),
+    acknowledgedAt: timestamp("acknowledged_at"),
   },
   (table) => ({
-    tenantIdx: index("audit_log_tenant_idx").on(table.tenantId, table.createdAt),
+    unackIdx: index("da_unack_idx").on(table.acknowledged, table.detectedAt),
   })
 );
 
@@ -391,83 +411,82 @@ export const auditLog = pgTable(
 // RELATIONS
 // ============================================================================
 
-export const tenantsRelations = relations(tenants, ({ many }) => ({
-  users: many(users),
-  invites: many(invites),
-  contacts: many(contactsSnapshot),
-  contactsMerged: many(contactsMerged),
-  vipCandidates: many(vipCandidates),
-  vipList: many(vipList),
-  newsItems: many(newsItems),
-  outreachLog: many(outreachLog),
-  integrationSecrets: many(integrationSecrets),
-  automationRuns: many(automationRuns),
-}));
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [users.tenantId],
-    references: [tenants.id],
-  }),
+export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
-  invitesCreated: many(invites),
+  deals: many(deals),
+  interactions: many(interactions),
 }));
 
-export const contactsSnapshotRelations = relations(contactsSnapshot, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [contactsSnapshot.tenantId],
-    references: [tenants.id],
-  }),
-}));
-
-export const contactsMergedRelations = relations(contactsMerged, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [contactsMerged.tenantId],
-    references: [tenants.id],
-  }),
-  primarySnapshot: one(contactsSnapshot, {
-    fields: [contactsMerged.primarySnapshotId],
-    references: [contactsSnapshot.id],
-  }),
-  vipCandidate: many(vipCandidates),
-  vipEntry: many(vipList),
+export const contactsRelations = relations(contacts, ({ many }) => ({
+  vip: many(vips),
   outreach: many(outreachLog),
+  employments: many(companyEmployees),
+  interactions: many(interactions),
+  tags: many(contactTags),
+  newsItems: many(newsItems),
 }));
 
-export const vipCandidatesRelations = relations(vipCandidates, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [vipCandidates.tenantId],
-    references: [tenants.id],
-  }),
-  contact: one(contactsMerged, {
-    fields: [vipCandidates.contactId],
-    references: [contactsMerged.id],
-  }),
+export const companiesRelations = relations(companies, ({ many }) => ({
+  employees: many(companyEmployees),
+  fundingRounds: many(fundingRounds),
+  deals: many(deals),
+  interactions: many(interactions),
+  tags: many(companyTags),
+  departureAlerts: many(departureAlerts),
 }));
 
-export const vipListRelations = relations(vipList, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [vipList.tenantId],
-    references: [tenants.id],
-  }),
-  contact: one(contactsMerged, {
-    fields: [vipList.contactId],
-    references: [contactsMerged.id],
-  }),
+export const companyEmployeesRelations = relations(companyEmployees, ({ one }) => ({
+  company: one(companies, { fields: [companyEmployees.companyId], references: [companies.id] }),
+  contact: one(contacts, { fields: [companyEmployees.contactId], references: [contacts.id] }),
+}));
+
+export const fundingRoundsRelations = relations(fundingRounds, ({ one }) => ({
+  company: one(companies, { fields: [fundingRounds.companyId], references: [companies.id] }),
+}));
+
+export const dealsRelations = relations(deals, ({ one }) => ({
+  company: one(companies, { fields: [deals.companyId], references: [companies.id] }),
+  assignee: one(users, { fields: [deals.assignedTo], references: [users.id] }),
+}));
+
+export const interactionsRelations = relations(interactions, ({ one }) => ({
+  contact: one(contacts, { fields: [interactions.contactId], references: [contacts.id] }),
+  company: one(companies, { fields: [interactions.companyId], references: [companies.id] }),
+  user: one(users, { fields: [interactions.userId], references: [users.id] }),
+}));
+
+export const vipsRelations = relations(vips, ({ one }) => ({
+  contact: one(contacts, { fields: [vips.contactId], references: [contacts.id] }),
 }));
 
 export const outreachLogRelations = relations(outreachLog, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [outreachLog.tenantId],
-    references: [tenants.id],
-  }),
-  contact: one(contactsMerged, {
-    fields: [outreachLog.contactId],
-    references: [contactsMerged.id],
-  }),
-  newsItem: one(newsItems, {
-    fields: [outreachLog.newsItemId],
-    references: [newsItems.id],
-  }),
+  contact: one(contacts, { fields: [outreachLog.contactId], references: [contacts.id] }),
+  newsItem: one(newsItems, { fields: [outreachLog.newsItemId], references: [newsItems.id] }),
+}));
+
+export const newsItemsRelations = relations(newsItems, ({ one }) => ({
+  contact: one(contacts, { fields: [newsItems.contactId], references: [contacts.id] }),
+}));
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  contacts: many(contactTags),
+  companies: many(companyTags),
+}));
+
+export const contactTagsRelations = relations(contactTags, ({ one }) => ({
+  contact: one(contacts, { fields: [contactTags.contactId], references: [contacts.id] }),
+  tag: one(tags, { fields: [contactTags.tagId], references: [tags.id] }),
+}));
+
+export const companyTagsRelations = relations(companyTags, ({ one }) => ({
+  company: one(companies, { fields: [companyTags.companyId], references: [companies.id] }),
+  tag: one(tags, { fields: [companyTags.tagId], references: [tags.id] }),
+}));
+
+export const departureAlertsRelations = relations(departureAlerts, ({ one }) => ({
+  companyEmployee: one(companyEmployees, { fields: [departureAlerts.companyEmployeeId], references: [companyEmployees.id] }),
+  contact: one(contacts, { fields: [departureAlerts.contactId], references: [contacts.id] }),
+  company: one(companies, { fields: [departureAlerts.companyId], references: [companies.id] }),
+  acknowledgedByUser: one(users, { fields: [departureAlerts.acknowledgedBy], references: [users.id] }),
 }));
