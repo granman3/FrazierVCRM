@@ -40,7 +40,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        Settings
+      </h2>
 
       <Card>
         <CardHeader>
@@ -49,20 +51,20 @@ export default function SettingsPage() {
         <CardContent className="space-y-6">
           {groups.map((group) => (
             <div key={group}>
-              <h4 className="mb-2 text-sm font-semibold text-gray-700">{group}</h4>
-              <div className="space-y-2">
+              <h4 className="mb-2 text-sm font-semibold text-sage-200">{group}</h4>
+              <div className="space-y-1.5">
                 {ENV_CHECKS.filter((c) => c.group === group).map((check) => {
                   const configured = isConfigured(check.name);
                   return (
                     <div
                       key={check.name}
-                      className="flex items-center justify-between rounded-md border px-4 py-2.5"
+                      className="flex items-center justify-between rounded-md border border-border px-4 py-2.5"
                     >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-foreground">
                           {check.label}
                         </p>
-                        <p className="text-xs text-gray-400">{check.name}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{check.name}</p>
                       </div>
                       <Badge variant={configured ? "success" : "destructive"}>
                         {configured ? "Configured" : "Missing"}
@@ -81,7 +83,7 @@ export default function SettingsPage() {
           <CardTitle>Pipeline</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-4 text-sm text-gray-600">
+          <p className="mb-4 text-sm text-muted-foreground">
             Manually trigger a full pipeline run: sync contacts, classify VIPs,
             detect signals, generate outreach drafts, and send the daily digest.
           </p>
@@ -93,22 +95,22 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Tuning</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-md border px-4 py-2.5">
+        <CardContent className="space-y-1.5">
+          <div className="flex items-center justify-between rounded-md border border-border px-4 py-2.5">
             <div>
-              <p className="text-sm font-medium text-gray-900">VIP Auto-Approve Threshold</p>
-              <p className="text-xs text-gray-400">VIP_AUTO_APPROVE_THRESHOLD</p>
+              <p className="text-sm font-medium text-foreground">VIP Auto-Approve Threshold</p>
+              <p className="font-mono text-xs text-muted-foreground">VIP_AUTO_APPROVE_THRESHOLD</p>
             </div>
-            <span className="text-sm font-mono text-gray-700">
+            <span className="font-mono text-sm text-sage-200">
               {process.env.VIP_AUTO_APPROVE_THRESHOLD ?? "0.85"}
             </span>
           </div>
-          <div className="flex items-center justify-between rounded-md border px-4 py-2.5">
+          <div className="flex items-center justify-between rounded-md border border-border px-4 py-2.5">
             <div>
-              <p className="text-sm font-medium text-gray-900">Cooldown Days</p>
-              <p className="text-xs text-gray-400">COOLDOWN_DAYS</p>
+              <p className="text-sm font-medium text-foreground">Cooldown Days</p>
+              <p className="font-mono text-xs text-muted-foreground">COOLDOWN_DAYS</p>
             </div>
-            <span className="text-sm font-mono text-gray-700">
+            <span className="font-mono text-sm text-sage-200">
               {process.env.COOLDOWN_DAYS ?? "14"}
             </span>
           </div>

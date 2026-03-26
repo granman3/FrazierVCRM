@@ -3,12 +3,7 @@ import { getDb } from "@/db";
 import { contacts, vips } from "@/db/schema";
 import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ContactsPageProps {
   readonly searchParams: { q?: string; page?: string };
@@ -53,9 +48,9 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Contacts</h2>
-      </div>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        Contacts
+      </h2>
 
       <form method="GET" className="flex gap-2">
         <input
@@ -63,11 +58,11 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
           type="text"
           placeholder="Search contacts..."
           defaultValue={search}
-          className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full max-w-sm rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-sage-200 focus:outline-none focus:ring-1 focus:ring-sage-200"
         />
         <button
           type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-md bg-sage-200 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-sage-300 transition-colors"
         >
           Search
         </button>
@@ -77,7 +72,7 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
-              <tr className="border-b bg-gray-50 text-left text-sm font-medium text-gray-500">
+              <tr className="border-b border-border text-left text-sm font-medium text-muted-foreground">
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Title</th>
@@ -88,28 +83,25 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                     No contacts found.
                   </td>
                 </tr>
               ) : (
                 rows.map((contact) => (
-                  <tr key={contact.id} className="border-b hover:bg-gray-50">
+                  <tr key={contact.id} className="border-b border-border transition-colors hover:bg-secondary/50">
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/contacts/${contact.id}`}
-                        className="text-sm font-medium text-blue-600 hover:underline"
-                      >
+                      <span className="text-sm font-medium text-foreground">
                         {contact.fullName}
-                      </Link>
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {contact.company ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {contact.title ?? "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {contact.email ?? "-"}
                     </td>
                     <td className="px-4 py-3">
@@ -129,16 +121,16 @@ export default async function ContactsPage({ searchParams }: ContactsPageProps) 
         {page > 1 && (
           <Link
             href={`/contacts?q=${encodeURIComponent(search)}&page=${page - 1}`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             Previous
           </Link>
         )}
-        <span className="text-sm text-gray-500">Page {page}</span>
+        <span className="text-sm text-muted-foreground">Page {page}</span>
         {rows.length === limit && (
           <Link
             href={`/contacts?q=${encodeURIComponent(search)}&page=${page + 1}`}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             Next
           </Link>

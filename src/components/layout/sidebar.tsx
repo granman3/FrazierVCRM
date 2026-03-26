@@ -30,11 +30,16 @@ const navLinks = [
 
 export function Sidebar({ currentPath }: SidebarProps) {
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-white">
-      <div className="flex h-16 items-center border-b px-6">
-        <span className="text-lg font-bold text-gray-900">Frazier CRM</span>
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-card">
+      <div className="flex h-16 items-center border-b border-border px-6">
+        <span className="text-lg font-semibold tracking-tight text-sage-200">
+          Frazier
+        </span>
+        <span className="ml-1.5 text-lg font-light tracking-tight text-muted-foreground">
+          CRM
+        </span>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 px-3 py-4">
         {navLinks.map((link) => {
           const isActive =
             currentPath === link.href ||
@@ -45,10 +50,10 @@ export function Sidebar({ currentPath }: SidebarProps) {
               key={link.href}
               href={link.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
                 isActive
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-sage-200/10 text-sage-200"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -57,6 +62,11 @@ export function Sidebar({ currentPath }: SidebarProps) {
           );
         })}
       </nav>
+      <div className="border-t border-border px-6 py-4">
+        <p className="text-xs text-muted-foreground">
+          Frazier VC Chief of Staff
+        </p>
+      </div>
     </aside>
   );
 }

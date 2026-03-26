@@ -18,25 +18,23 @@ export default async function DashboardLayout({
   const pathname = headersList.get("x-next-pathname") ?? "/dashboard";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar currentPath={pathname} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-          <h1 className="text-lg font-semibold text-gray-900">
-            Frazier VC CRM
-          </h1>
+        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
+          <div />
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted-foreground">
               {session.user?.name ?? session.user?.email}
             </span>
             {session.user?.image ? (
               <img
                 src={session.user.image}
                 alt="Avatar"
-                className="h-8 w-8 rounded-full"
+                className="h-8 w-8 rounded-full ring-2 ring-border"
               />
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-200/15 text-sm font-medium text-sage-200">
                 {(session.user?.name ?? session.user?.email ?? "U")
                   .charAt(0)
                   .toUpperCase()}

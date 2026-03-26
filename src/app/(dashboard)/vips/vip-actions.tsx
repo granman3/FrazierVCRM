@@ -32,14 +32,14 @@ export function VipApproveReject({ vipId }: VipActionsProps) {
       <button
         onClick={() => handleAction("approve")}
         disabled={loading}
-        className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+        className="rounded-md bg-sage-200 px-3 py-1.5 text-xs font-medium text-gray-900 transition-colors hover:bg-sage-300 disabled:opacity-50"
       >
         Approve
       </button>
       <button
         onClick={() => handleAction("reject")}
         disabled={loading}
-        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        className="rounded-md bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/25 disabled:opacity-50"
       >
         Reject
       </button>
@@ -71,7 +71,7 @@ export function VipDeactivate({ vipId }: VipActionsProps) {
     <button
       onClick={handleToggle}
       disabled={loading}
-      className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
     >
       Deactivate
     </button>

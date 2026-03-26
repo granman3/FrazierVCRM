@@ -48,18 +48,21 @@ export default async function VipsPage() {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-900">VIP Management</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        VIP Management
+      </h2>
 
       <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Pending Review ({pendingVips.length})
+        <h3 className="text-lg font-medium text-foreground">
+          Pending Review
+          <span className="ml-2 text-sm text-muted-foreground">({pendingVips.length})</span>
         </h3>
         {pendingVips.length === 0 ? (
-          <p className="text-sm text-gray-500">No VIPs pending review.</p>
+          <p className="text-sm text-muted-foreground">No VIPs pending review.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pendingVips.map((vip) => (
-              <Card key={vip.id} className="border-yellow-200 bg-yellow-50">
+              <Card key={vip.id} className="border-warm/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">
@@ -67,22 +70,22 @@ export default async function VipsPage() {
                     </CardTitle>
                     <Badge variant="warning">{vip.category}</Badge>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     {vip.contactTitle}
                     {vip.contactCompany ? ` at ${vip.contactCompany}` : ""}
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <p className="mb-2 text-sm text-gray-700">{vip.reason}</p>
+                  <p className="mb-3 text-sm text-muted-foreground">{vip.reason}</p>
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Confidence:</span>
-                    <div className="h-2 w-24 rounded-full bg-gray-200">
+                    <span className="text-xs text-muted-foreground">Confidence:</span>
+                    <div className="h-1.5 w-24 rounded-full bg-secondary">
                       <div
-                        className="h-2 rounded-full bg-yellow-500"
+                        className="h-1.5 rounded-full bg-warm transition-all"
                         style={{ width: `${Math.round(vip.confidence * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="font-mono text-xs text-warm">
                       {Math.round(vip.confidence * 100)}%
                     </span>
                   </div>
@@ -95,15 +98,16 @@ export default async function VipsPage() {
       </section>
 
       <section className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Active VIPs ({activeVips.length})
+        <h3 className="text-lg font-medium text-foreground">
+          Active VIPs
+          <span className="ml-2 text-sm text-muted-foreground">({activeVips.length})</span>
         </h3>
         {activeVips.length === 0 ? (
-          <p className="text-sm text-gray-500">No active VIPs.</p>
+          <p className="text-sm text-muted-foreground">No active VIPs.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {activeVips.map((vip) => (
-              <Card key={vip.id}>
+              <Card key={vip.id} className="transition-colors duration-200 hover:border-sage-200/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">
@@ -111,22 +115,22 @@ export default async function VipsPage() {
                     </CardTitle>
                     <Badge variant="success">{vip.category}</Badge>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     {vip.contactTitle}
                     {vip.contactCompany ? ` at ${vip.contactCompany}` : ""}
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <p className="mb-2 text-sm text-gray-700">{vip.reason}</p>
+                  <p className="mb-3 text-sm text-muted-foreground">{vip.reason}</p>
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Confidence:</span>
-                    <div className="h-2 w-24 rounded-full bg-gray-200">
+                    <span className="text-xs text-muted-foreground">Confidence:</span>
+                    <div className="h-1.5 w-24 rounded-full bg-secondary">
                       <div
-                        className="h-2 rounded-full bg-green-500"
+                        className="h-1.5 rounded-full bg-sage-200 transition-all"
                         style={{ width: `${Math.round(vip.confidence * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="font-mono text-xs text-sage-200">
                       {Math.round(vip.confidence * 100)}%
                     </span>
                   </div>

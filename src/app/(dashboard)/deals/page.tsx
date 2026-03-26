@@ -75,7 +75,9 @@ export default async function DealsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Deals</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        Deals
+      </h2>
 
       {STAGE_ORDER.map((stage) => {
         const stageDeals = grouped[stage] ?? [];
@@ -84,22 +86,22 @@ export default async function DealsPage() {
         return (
           <section key={stage} className="space-y-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold capitalize text-gray-800">
+              <h3 className="text-lg font-medium capitalize text-foreground">
                 {stage.replace("_", " ")}
               </h3>
               <Badge variant={stageVariant(stage)}>{stageDeals.length}</Badge>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {stageDeals.map((deal) => (
-                <Card key={deal.id}>
+                <Card key={deal.id} className="transition-colors duration-200 hover:border-sage-200/30">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base">{deal.dealName}</CardTitle>
-                    <p className="text-sm text-gray-600">{deal.companyName}</p>
+                    <p className="text-sm text-muted-foreground">{deal.companyName}</p>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>{deal.assigneeName ?? "Unassigned"}</span>
-                      <span className="font-medium">
+                      <span className="font-mono text-warm">
                         {formatCurrency(deal.checkSize)}
                       </span>
                     </div>
@@ -112,7 +114,7 @@ export default async function DealsPage() {
       })}
 
       {rows.length === 0 && (
-        <p className="text-sm text-gray-500">No deals in the pipeline.</p>
+        <p className="text-sm text-muted-foreground">No deals in the pipeline.</p>
       )}
     </div>
   );

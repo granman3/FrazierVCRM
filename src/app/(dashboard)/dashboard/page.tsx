@@ -40,26 +40,30 @@ export default async function DashboardPage() {
     ]);
 
   const stats = [
-    { label: "Total Contacts", value: contactCount },
-    { label: "Active VIPs", value: vipCount },
-    { label: "Portfolio Companies", value: companyCount },
-    { label: "Open Deals", value: dealCount },
+    { label: "Total Contacts", value: contactCount, accent: false },
+    { label: "Active VIPs", value: vipCount, accent: true },
+    { label: "Portfolio Companies", value: companyCount, accent: false },
+    { label: "Open Deals", value: dealCount, accent: false },
   ];
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        Dashboard
+      </h2>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.label}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{stat.value}</p>
+              <p className={`text-3xl font-semibold tracking-tight ${stat.accent ? "text-sage-200" : "text-foreground"}`}>
+                {stat.value}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -71,13 +75,13 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent>
           {recentRuns.length === 0 ? (
-            <p className="text-sm text-gray-500">No pipeline runs yet.</p>
+            <p className="text-sm text-muted-foreground">No pipeline runs yet.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentRuns.map((run) => (
                 <div
                   key={run.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex items-center justify-between rounded-md border border-border p-3"
                 >
                   <div className="flex items-center gap-3">
                     <Badge
@@ -91,11 +95,11 @@ export default async function DashboardPage() {
                     >
                       {run.status}
                     </Badge>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       {run.startedAt.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex gap-4 text-sm text-gray-500">
+                  <div className="flex gap-4 text-sm text-muted-foreground">
                     <span>{run.contactsSynced ?? 0} contacts</span>
                     <span>{run.vipsProcessed ?? 0} VIPs</span>
                     <span>{run.draftsCreated ?? 0} drafts</span>

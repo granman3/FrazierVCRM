@@ -1,10 +1,13 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        mono: ["Space Mono", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -34,6 +37,21 @@ const config: Config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        sage: {
+          50: "#eef7ee",
+          100: "#d6ead7",
+          200: "#add4ae",
+          300: "#84be85",
+          400: "#5fa860",
+          500: "#3f8f40",
+          600: "#2f6f30",
+          DEFAULT: "#add4ae",
+        },
+        warm: {
+          DEFAULT: "#f2a65e",
+          light: "#f5bd85",
+          dark: "#d9893a",
         },
       },
       borderRadius: {

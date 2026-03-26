@@ -2,12 +2,7 @@ import { getDb } from "@/db";
 import { outreachLog, contacts } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function OutreachPage() {
   const db = getDb(process.env.DATABASE_URL!);
@@ -28,16 +23,18 @@ export default async function OutreachPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Outreach Log</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        Outreach Log
+      </h2>
 
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">No outreach messages yet.</p>
+        <p className="text-sm text-muted-foreground">No outreach messages yet.</p>
       ) : (
         <Card>
           <CardContent className="p-0">
             <table className="w-full">
               <thead>
-                <tr className="border-b bg-gray-50 text-left text-sm font-medium text-gray-500">
+                <tr className="border-b border-border text-left text-sm font-medium text-muted-foreground">
                   <th className="px-4 py-3">Contact</th>
                   <th className="px-4 py-3">Trigger</th>
                   <th className="px-4 py-3">Draft Preview</th>
@@ -46,24 +43,26 @@ export default async function OutreachPage() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-b hover:bg-gray-50">
+                  <tr key={item.id} className="border-b border-border transition-colors hover:bg-secondary/50">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {item.contactName}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {item.contactEmail ?? ""}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge>{item.triggerType}</Badge>
+                      <Badge variant={item.triggerType === "job_change" ? "warning" : "default"}>
+                        {item.triggerType}
+                      </Badge>
                     </td>
                     <td className="max-w-md px-4 py-3">
-                      <p className="line-clamp-2 text-sm text-gray-600">
+                      <p className="line-clamp-2 text-sm text-muted-foreground">
                         {item.draftText}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {item.sentAt.toLocaleDateString()}
                     </td>
                   </tr>

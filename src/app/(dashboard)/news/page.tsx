@@ -2,12 +2,7 @@ import { getDb } from "@/db";
 import { newsItems } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 function categoryVariant(category: string | null) {
   const map: Record<string, "default" | "success" | "warning" | "destructive" | "secondary"> = {
@@ -31,32 +26,32 @@ export default async function NewsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">News Feed</h2>
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+        News Feed
+      </h2>
 
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">No news items yet.</p>
+        <p className="text-sm text-muted-foreground">No news items yet.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {items.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="transition-colors duration-200 hover:border-sage-200/30">
               <CardContent className="flex items-start justify-between gap-4 py-4">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-blue-600 hover:underline"
-                    >
-                      {item.headline}
-                    </a>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-sage-200 transition-colors hover:text-sage-100"
+                  >
+                    {item.headline}
+                  </a>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                     {item.company && <span>{item.company}</span>}
                     {item.source && <span>via {item.source}</span>}
                   </div>
                   {item.snippet && (
-                    <p className="mt-1 line-clamp-2 text-sm text-gray-600">
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                       {item.snippet}
                     </p>
                   )}
@@ -67,7 +62,7 @@ export default async function NewsPage() {
                       {item.category}
                     </Badge>
                   )}
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     {item.fetchedAt.toLocaleDateString()}
                   </span>
                 </div>
