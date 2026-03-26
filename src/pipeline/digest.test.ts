@@ -11,7 +11,21 @@ vi.mock("../lib/retry", () => ({
   }),
 }));
 
-import { fallbackDraft, buildDigestHtml, type DigestEntry, type DraftParams } from "./digest";
+vi.mock("openai", () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: "AI generated draft" } }],
+          }),
+        },
+      },
+    })),
+  };
+});
+
+import { fallbackDraft, generateDraft, buildDigestHtml, type DigestEntry, type DraftParams } from "./digest";
 
 describe("fallbackDraft", () => {
   it("generates job change message", () => {
@@ -53,6 +67,60 @@ describe("fallbackDraft", () => {
     });
     expect(draft).toContain("Robert");
     expect(draft).not.toContain("James");
+  });
+});
+
+describe("generateDraft", () => {
+  it("returns fallback when no API key", async () => {
+    const draft = await generateDraft({ contactName: "Jane Doe" });
+    expect(draft).toContain("Jane");
+  });
+
+  it("returns AI draft when API key provided", async () => {
+    const draft = await generateDraft({ contactName: "Jane Doe" }, "fake-key");
+    expect(draft).toBe("AI generated draft");
+  });
+
+  it("includes job change context in AI prompt", async () => {
+    const draft = await generateDraft(
+      {
+        contactName: "Jane Doe",
+        contactCompany: "OldCo",
+        jobChange: {
+          previousCompany: "OldCo",
+          previousTitle: "CTO",
+          currentCompany: "NewCo",
+          currentTitle: "CEO",
+        },
+      },
+      "fake-key"
+    );
+    expect(draft).toBe("AI generated draft");
+  });
+
+  it("includes news context in AI prompt", async () => {
+    const draft = await generateDraft(
+      {
+        contactName: "Jane Doe",
+        news: { headline: "Company raises $10M", url: "https://example.com" },
+      },
+      "fake-key"
+    );
+    expect(draft).toBe("AI generated draft");
+  });
+
+  it("falls back on AI failure", async () => {
+    const OpenAI = (await import("openai")).default;
+    vi.mocked(OpenAI).mockImplementationOnce(() => ({
+      chat: {
+        completions: {
+          create: vi.fn().mockRejectedValue(new Error("API down")),
+        },
+      },
+    }) as any);
+
+    const draft = await generateDraft({ contactName: "Jane Doe" }, "fake-key");
+    expect(draft).toContain("Jane");
   });
 });
 

@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { VipApproveReject, VipDeactivate } from "./vip-actions";
 
 export default async function VipsPage() {
   const db = getDb(process.env.DATABASE_URL!);
@@ -85,14 +86,7 @@ export default async function VipsPage() {
                       {Math.round(vip.confidence * 100)}%
                     </span>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
-                      Approve
-                    </button>
-                    <button className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
-                      Reject
-                    </button>
-                  </div>
+                  <VipApproveReject vipId={vip.id} />
                 </CardContent>
               </Card>
             ))}
@@ -124,7 +118,7 @@ export default async function VipsPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="mb-2 text-sm text-gray-700">{vip.reason}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs text-gray-500">Confidence:</span>
                     <div className="h-2 w-24 rounded-full bg-gray-200">
                       <div
@@ -136,6 +130,7 @@ export default async function VipsPage() {
                       {Math.round(vip.confidence * 100)}%
                     </span>
                   </div>
+                  <VipDeactivate vipId={vip.id} />
                 </CardContent>
               </Card>
             ))}

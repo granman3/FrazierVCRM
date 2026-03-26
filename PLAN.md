@@ -1,143 +1,146 @@
-# FrazierVCRM Simplification Plan
+# FrazierVCRM Plan
 
 ## Goal
-Rewrite the app as a lightweight background pipeline for Frazier VC. Strip the multi-tenant SaaS architecture, web UI, and job queue. Keep only the core value: **contact sync → VIP classification → signal monitoring → daily digest email**.
+VC relationship management for Frazier VC with two components:
+1. **Headless pipeline** (cron): contact sync → VIP classification → signal monitoring → daily digest email
+2. **Web dashboard** (Next.js): manage contacts, companies, deals, VIPs, view pipeline results, trigger runs
 
-## What Gets Cut
+Single-org (Frazier VC). No multi-tenancy, no invite system, no setup wizard.
 
-| Current Feature | Why It's Cut |
+## What Was Cut (from original SaaS)
+
+| Feature | Why |
 |---|---|
-| Multi-tenancy (tenants table, all tenantId FKs) | Single org (Frazier VC) |
-| NextAuth + Google OAuth | No web UI needed |
-| Next.js web app (all pages, components, middleware) | Pipeline runs headless |
-| pg-boss job queue + worker process | Simple cron replaces this |
-| Invite system + roles | Single org, no users |
-| Admin console + platform admin bootstrap | No web UI |
+| Multi-tenancy (tenants table, tenantId FKs) | Single org |
+| pg-boss job queue + worker process | System cron is sufficient |
+| Invite system + roles | Single org |
+| Admin console + platform admin bootstrap | Unnecessary complexity |
 | Setup wizard | Config via env vars |
 | Encrypted secrets (sodium-native) | Env vars are sufficient |
-| Audit log table | Overkill for single org |
-| shadcn/ui + Radix + Tailwind + React Query | No frontend |
-| ~60 UI/API files | Replaced by ~8 files |
 
-## What Gets Kept (Simplified)
+## Architecture
 
-| Feature | Current | Simplified |
-|---|---|---|
-| Contact sync | iCloud CardDAV + Google Contacts via encrypted secrets | Same sources, credentials from env vars |
-| VIP classification | DeepSeek + heuristic fallback | Keep as-is, great logic |
-| Job change detection | Proxycurl LinkedIn enrichment | Keep as-is |
-| News monitoring | Google RSS + Bing News | Keep as-is |
-| Daily digest email | Resend HTML email | Keep as-is |
-| Database | PostgreSQL + Drizzle (14 tables) | PostgreSQL + Drizzle (6 tables) |
-| Run tracking | automation_runs table | Keep simplified |
+### Pipeline (`src/pipeline/`)
+Entry point: `tsx src/pipeline/main.ts` — triggered by system cron daily.
 
-## New Architecture
-
-**Type**: Headless TypeScript pipeline, triggered by system cron
-**Runtime**: `tsx` script (or compiled with `tsc`)
-**No web server, no job queue, no frontend**
-
-### File Structure (~8 files)
-```
-src/
-├── main.ts              # Entry point — orchestrates the full pipeline
-├── db/
-│   ├── schema.ts        # 6 tables (contacts, vips, news, outreach, runs)
-│   └── index.ts         # Drizzle connection
-├── sync/
-│   ├── icloud.ts        # iCloud CardDAV sync
-│   └── google.ts        # Google Contacts sync
-├── classify.ts          # VIP classification (DeepSeek + heuristic)
-├── monitor.ts           # Job change detection + news fetching
-├── digest.ts            # Email generation + sending via Resend
-└── config.ts            # Env var loading + validation
-```
-
-### Simplified Schema (6 tables)
-```
-contacts          — synced contacts (replaces contacts_snapshot + contacts_merged)
-vips              — approved VIPs to monitor (replaces vip_list + vip_candidates)
-news_items        — cached news articles
-outreach_log      — history of sent drafts
-runs              — pipeline execution history
-```
-
-No `tenantId` on anything. No invites, sessions, accounts, audit_log, or verification_tokens tables.
-
-### Pipeline Flow (main.ts)
 ```
 1. Load config from env vars
-2. Sync contacts (iCloud + Google)
-3. Classify new contacts → suggest VIPs (auto-approve above threshold)
+2. Sync contacts (iCloud CardDAV + Google People API)
+3. Classify new contacts → auto-approve VIPs above threshold
 4. For each active VIP:
    a. Check for job changes (Proxycurl)
    b. Fetch company news (Google RSS + Bing)
    c. Filter for exciting signals
-   d. Skip if contacted in last 14 days
+   d. Skip if contacted within cooldown window
    e. Generate outreach draft (DeepSeek)
 5. Send daily digest email (Resend)
 6. Log run status
 ```
 
-### Config (env vars only)
+### Web Dashboard (`src/app/`)
+Next.js 14 app with NextAuth (Google OAuth). Route groups:
+- `(auth)/` — login page
+- `(dashboard)/` — protected pages: dashboard, contacts, companies, deals, VIPs, news, outreach, settings
+
+API routes under `src/app/api/` provide CRUD for all entities plus pipeline trigger/run history.
+
+### Database (`src/db/`)
+PostgreSQL + Drizzle ORM. 14 tables covering contacts, companies, deals, VIPs, news, outreach, interactions, tags, pipeline runs, and NextAuth (users, accounts, sessions).
+
+## Completed Phases
+
+### Phase 1: Schema + Config ✅
+- Drizzle schema with 14 tables
+- Zod-validated config (`src/lib/config.ts`)
+- Pino structured logging (`src/lib/logger.ts`)
+- Retry with exponential backoff (`src/lib/retry.ts`)
+
+### Phase 2: Contact Sync ✅
+- iCloud CardDAV sync (`src/pipeline/sync/icloud.ts`)
+- Google People API sync (`src/pipeline/sync/google.ts`)
+- Upsert with conflict resolution
+
+### Phase 3: VIP Classification ✅
+- DeepSeek AI classifier + heuristic fallback (`src/pipeline/classify.ts`)
+- Auto-approve above configurable threshold
+- Batch processing (150 contacts at a time)
+
+### Phase 4: Signal Monitoring ✅
+- Proxycurl job change detection (`src/pipeline/monitor.ts`)
+- Google News RSS + Bing News API
+- Categorization + "exciting" signal filter
+
+### Phase 5: Digest + Orchestration ✅
+- DeepSeek draft generation with template fallback (`src/pipeline/digest.ts`)
+- Resend email delivery
+- Pipeline orchestrator (`src/pipeline/main.ts`)
+- Run logging
+
+### Phase 6: Web Dashboard (new API routes + pages) ✅
+- CRUD API routes for contacts, companies, deals, VIPs, news, outreach, interactions, tags, search
+- Pipeline trigger + run history endpoints
+- Dashboard pages with route groups
+- Sidebar layout
+
+## Remaining Work
+
+### Phase 7: Fix Build + Auth
+- [ ] Fix TypeScript errors in `src/lib/auth.ts` (NextAuth + Drizzle adapter type mismatch)
+- [ ] Add `NEXTAUTH_SECRET` and `GOOGLE_CLIENT_ID`/`SECRET` to config validation
+- [ ] Implement Google OAuth token refresh flow for pipeline contact sync
+- [ ] Fix npm audit vulnerabilities (critical: next, high: eslint plugins)
+
+### Phase 8: Database Migrations
+- [ ] Generate initial Drizzle migration (`npm run db:generate`)
+- [ ] Test migration against fresh PostgreSQL instance
+- [ ] Add migration to CI/deployment pipeline
+
+### Phase 9: Dashboard UI Build-Out
+- [ ] Wire dashboard pages to API routes (currently placeholder pages)
+- [ ] Add data tables, forms, and filters for each entity
+- [ ] Pipeline run history view with status indicators
+- [ ] Manual pipeline trigger from dashboard
+- [ ] Settings page for config management
+
+### Phase 10: Testing + Production
+- [ ] Integration tests against real database
+- [ ] API route tests
+- [ ] Reach 80%+ test coverage
+- [ ] Update Dockerfile for combined pipeline + web server
+- [ ] Set up cron schedule for pipeline
+- [ ] Production deployment config
+
+## Config (env vars)
+
 ```env
-DATABASE_URL=
-ICLOUD_USERNAME=
-ICLOUD_APP_PASSWORD=
+# Database (required)
+DATABASE_URL=postgresql://user:pass@localhost:5432/frazier_vcrm
+
+# Auth (required for dashboard)
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=
+
+# Google OAuth (required for dashboard login + optional contact sync)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 GOOGLE_ACCESS_TOKEN=
 GOOGLE_REFRESH_TOKEN=
+
+# iCloud (optional contact source)
+ICLOUD_USERNAME=
+ICLOUD_APP_PASSWORD=
+
+# AI + Enrichment (optional, graceful degradation)
 DEEPSEEK_API_KEY=
 PROXYCURL_API_KEY=
 BING_NEWS_API_KEY=
+
+# Email (optional)
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-DIGEST_TO_EMAIL=           # who receives the daily digest
-VIP_AUTO_APPROVE_THRESHOLD=0.85  # auto-approve VIPs above this confidence
+RESEND_FROM_EMAIL=digest@yourdomain.com
+DIGEST_TO_EMAIL=you@fraziervc.com
+
+# Tuning
+VIP_AUTO_APPROVE_THRESHOLD=0.85
+COOLDOWN_DAYS=14
 ```
-
-### Scheduling
-System cron runs `tsx src/main.ts` daily at 7 AM (or whatever time Frazier wants). No pg-boss, no worker process.
-
-## Dependencies (Before → After)
-
-**Cut**: next, next-auth, react, react-dom, @radix-ui/*, @tanstack/react-query, react-hook-form, tailwind*, class-variance-authority, clsx, lucide-react, pg-boss, sodium-native, @auth/drizzle-adapter, @react-email/components, tailwindcss-animate, tailwind-merge, concurrently, autoprefixer, postcss, eslint-config-next
-
-**Keep**: drizzle-orm, drizzle-kit, pg, openai, resend, tsdav, zod, tsx, typescript, vitest
-
-**~25 dependencies → ~10 dependencies**
-
-## Implementation Phases
-
-### Phase 1: Schema + Config (foundation)
-- Create simplified schema (6 tables)
-- Create config.ts with env var validation (Zod)
-- Set up Drizzle connection
-- Generate and run migration
-
-### Phase 2: Contact Sync
-- Port iCloud CardDAV sync (strip tenantId, use env vars directly)
-- Port Google Contacts sync (same)
-- Write to simplified contacts table
-
-### Phase 3: VIP Classification
-- Port DeepSeek classifier + heuristic fallback
-- Auto-approve VIPs above confidence threshold
-- Write to simplified vips table
-
-### Phase 4: Signal Monitoring
-- Port Proxycurl job change detection (env var API key)
-- Port Google RSS + Bing news fetching
-- Port news categorization + "exciting" filter
-
-### Phase 5: Digest + Orchestration
-- Port Resend email digest generation
-- Wire up main.ts pipeline orchestrator
-- Add run logging
-- Test end-to-end
-
-### Phase 6: Cleanup + Deploy
-- Remove all old files (Next.js app, components, middleware, etc.)
-- Update package.json (strip UI deps)
-- Update Dockerfile to simple script runner
-- Set up cron schedule
-- Update .env.example

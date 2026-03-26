@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FrazierVCRM is a VC relationship management system being simplified from a multi-tenant Next.js SaaS into a **headless TypeScript pipeline**. The core value chain: **contact sync → VIP classification → signal monitoring → daily digest email**.
+FrazierVCRM is a VC relationship management system for Frazier VC with two components:
+1. **Headless pipeline** (`src/pipeline/`): contact sync → VIP classification → signal monitoring → daily digest email (runs via cron)
+2. **Web dashboard** (`src/app/`): Next.js 14 app for managing contacts, companies, deals, VIPs, and viewing pipeline results
 
-The codebase contains both legacy Next.js web UI code (slated for removal per PLAN.md Phase 6) and the new pipeline implementation in `src/pipeline/`.
+Single-org (no multi-tenancy). See PLAN.md for current status and remaining work.
 
 ## Commands
 
@@ -42,11 +44,11 @@ Entry point is `main.ts`. Runs as a headless script (no web server), triggered b
 - `config.ts` — Zod-validated environment variables (exits on invalid config)
 - `logger.ts` — Pino logger (pretty in dev, JSON in prod, override with `LOG_LEVEL`)
 - `retry.ts` — Exponential backoff with jitter, non-retryable HTTP status awareness
-- `auth.ts` — NextAuth + Google OAuth (legacy)
-- `utils.ts` — Tailwind `cn()` merge utility (legacy)
+- `auth.ts` — NextAuth + Google OAuth (has type errors, needs fix)
+- `utils.ts` — Tailwind `cn()` merge utility
 
-### Legacy Web UI (`src/app/`, `src/components/`)
-Full Next.js 14 app with NextAuth, Radix UI, TanStack Query, React Hook Form. **Being removed** — do not invest in this code.
+### Web Dashboard (`src/app/`, `src/components/`)
+Next.js 14 app with NextAuth (Google OAuth), Radix UI, TanStack Query, React Hook Form. Route groups: `(auth)/` for login, `(dashboard)/` for protected pages. API routes under `src/app/api/` provide CRUD for all entities plus pipeline trigger/run history.
 
 ## Key Design Patterns
 

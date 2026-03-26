@@ -82,7 +82,7 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <Badge
                       variant={
-                        run.status === "completed"
+                        run.status === "success"
                           ? "success"
                           : run.status === "failed"
                             ? "destructive"

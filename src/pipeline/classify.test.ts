@@ -4,7 +4,33 @@ vi.mock("../lib/logger", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import { classifyWithHeuristics } from "./classify";
+vi.mock("openai", () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{
+              message: {
+                content: JSON.stringify({
+                  classifications: [{
+                    id: "c1",
+                    isVIP: true,
+                    confidence: 0.9,
+                    category: "portfolio_founder",
+                    reason: "CEO of startup",
+                  }],
+                }),
+              },
+            }],
+          }),
+        },
+      },
+    })),
+  };
+});
+
+import { classifyWithHeuristics, classifyNewContacts } from "./classify";
 
 function contact(overrides: Partial<{ id: string; fullName: string; company: string | null; title: string | null; email: string | null }> = {}) {
   return {
@@ -15,6 +41,77 @@ function contact(overrides: Partial<{ id: string; fullName: string; company: str
     email: overrides.email ?? null,
   };
 }
+
+function makeMockDb(existingVipIds: string[] = [], unclassifiedContacts: any[] = []) {
+  return {
+    query: {
+      vips: {
+        findMany: vi.fn().mockResolvedValue(existingVipIds.map(id => ({ contactId: id }))),
+      },
+      contacts: {
+        findMany: vi.fn().mockResolvedValue(unclassifiedContacts),
+      },
+    },
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockResolvedValue([]),
+      }),
+    }),
+  };
+}
+
+describe("classifyNewContacts", () => {
+  it("returns 0 when no unclassified contacts", async () => {
+    const db = makeMockDb();
+    const result = await classifyNewContacts(db as any, undefined, 0.85);
+    expect(result).toBe(0);
+  });
+
+  it("classifies with heuristics when no API key", async () => {
+    const db = makeMockDb([], [
+      contact({ id: "c1", title: "CEO", company: "Startup" }),
+    ]);
+    const result = await classifyNewContacts(db as any, undefined, 0.85);
+    expect(result).toBe(1);
+    expect(db.insert).toHaveBeenCalled();
+  });
+
+  it("classifies with DeepSeek when API key provided", async () => {
+    const db = makeMockDb([], [
+      contact({ id: "c1", title: "Engineer", company: "Google" }),
+    ]);
+    const result = await classifyNewContacts(db as any, "fake-key", 0.85);
+    expect(result).toBe(1);
+  });
+
+  it("auto-approves above threshold", async () => {
+    const db = makeMockDb([], [
+      contact({ id: "c1", title: "CEO", company: "Startup" }),
+    ]);
+    await classifyNewContacts(db as any, undefined, 0.85);
+
+    const insertCall = db.insert.mock.results[0].value.values.mock.calls[0][0];
+    expect(insertCall.autoApproved).toBe(true);
+    expect(insertCall.active).toBe(true);
+  });
+
+  it("does not auto-approve below threshold", async () => {
+    const db = makeMockDb([], [
+      contact({ id: "c1", title: "Director of Ops", company: "SomeCo" }),
+    ]);
+    await classifyNewContacts(db as any, undefined, 0.85);
+
+    const insertCall = db.insert.mock.results[0].value.values.mock.calls[0][0];
+    expect(insertCall.autoApproved).toBe(false);
+    expect(insertCall.active).toBe(false);
+  });
+
+  it("skips contacts already classified", async () => {
+    const db = makeMockDb(["c1"], []);
+    const result = await classifyNewContacts(db as any, undefined, 0.85);
+    expect(result).toBe(0);
+  });
+});
 
 describe("classifyWithHeuristics", () => {
   it("classifies CEO as portfolio_founder with 0.9 confidence", () => {

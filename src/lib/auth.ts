@@ -10,6 +10,17 @@ import {
   verificationTokens,
 } from "@/db/schema";
 
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
+}
+
 function getAllowedEmails(): ReadonlyArray<string> {
   const raw = process.env.ALLOWED_EMAILS ?? "";
   return raw
@@ -21,11 +32,12 @@ function getAllowedEmails(): ReadonlyArray<string> {
 const db = getDb(process.env.DATABASE_URL!);
 
 export const authOptions: NextAuthOptions = {
-  adapter: DrizzleAdapter(db, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adapter: DrizzleAdapter(db as any, {
+    usersTable: users as any,
+    accountsTable: accounts as any,
+    sessionsTable: sessions as any,
+    verificationTokensTable: verificationTokens as any,
   }) as NextAuthOptions["adapter"],
   providers: [
     GoogleProvider({
