@@ -22,7 +22,7 @@ const envSchema = z.object({
   // Email delivery
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
-  DIGEST_TO_EMAIL: z.string().email(),
+  DIGEST_TO_EMAIL: z.string().email().optional(),
 
   // Tuning
   VIP_AUTO_APPROVE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.85),

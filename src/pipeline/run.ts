@@ -16,6 +16,7 @@ import { generateDraft, sendDigest, type DigestEntry } from "./digest";
  */
 export async function runPipeline(db: Db, config: Config): Promise<string> {
   const [run] = await db.insert(runs).values({ status: "running" }).returning();
+  if (!run) throw new Error("Failed to create pipeline run record");
 
   try {
     // ── Step 1: Sync contacts ──────────────────────────────────────────
@@ -127,7 +128,7 @@ export async function runPipeline(db: Db, config: Config): Promise<string> {
     }
 
     // ── Step 4: Send digest ────────────────────────────────────────────
-    if (digestEntries.length > 0 && config.RESEND_API_KEY && config.RESEND_FROM_EMAIL) {
+    if (digestEntries.length > 0 && config.RESEND_API_KEY && config.RESEND_FROM_EMAIL && config.DIGEST_TO_EMAIL) {
       await sendDigest(
         digestEntries,
         config.DIGEST_TO_EMAIL,

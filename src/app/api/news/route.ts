@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     const baseQuery = db
       .select()
       .from(newsItems)
-      .orderBy(desc(newsItems.fetchedAt));
+      .orderBy(desc(newsItems.fetchedAt))
+      .limit(100);
 
     const rows = company
       ? await baseQuery.where(eq(newsItems.company, company))

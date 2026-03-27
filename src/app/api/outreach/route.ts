@@ -22,7 +22,8 @@ export async function GET(_request: NextRequest) {
       })
       .from(outreachLog)
       .innerJoin(contacts, eq(outreachLog.contactId, contacts.id))
-      .orderBy(desc(outreachLog.sentAt));
+      .orderBy(desc(outreachLog.sentAt))
+      .limit(100);
 
     return NextResponse.json({ data: rows });
   } catch (error: unknown) {

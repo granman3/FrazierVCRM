@@ -148,14 +148,14 @@ describe("buildDigestHtml", () => {
     expect(html).toContain("Acme raises $10M");
   });
 
-  it("includes draft text", () => {
+  it("includes draft text (escaped)", () => {
     const html = buildDigestHtml([entry]);
     expect(html).toContain("Hey Jane! Exciting news about Acme.");
   });
 
   it("includes mailto link when email present", () => {
     const html = buildDigestHtml([entry]);
-    expect(html).toContain("mailto:jane@acme.com");
+    expect(html).toContain("mailto:jane%40acme.com");
     expect(html).toContain("Send Email");
   });
 

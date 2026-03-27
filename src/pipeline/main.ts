@@ -9,11 +9,15 @@ async function main() {
 
   try {
     await runPipeline(db, config);
-  } catch {
+  } catch (err) {
+    logger.error({ err }, "Fatal pipeline error");
     process.exitCode = 1;
   } finally {
     await closeDb();
   }
 }
 
-main();
+main().catch((err) => {
+  console.error("Unhandled pipeline error:", err);
+  process.exitCode = 1;
+});

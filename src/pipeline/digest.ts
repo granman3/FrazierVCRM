@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { JobChange, NewsItem } from "./monitor";
+import type { JobChange } from "./monitor";
 import { logger } from "../lib/logger";
 import { withRetry } from "../lib/retry";
 
@@ -113,25 +113,34 @@ export async function sendDigest(
   );
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function buildDigestHtml(entries: DigestEntry[]): string {
   const items = entries
     .map(
       (d) => `
     <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 8px;">
-      <h3 style="margin: 0 0 8px 0;">${d.contactName}</h3>
+      <h3 style="margin: 0 0 8px 0;">${escapeHtml(d.contactName)}</h3>
       <p style="margin: 0 0 4px 0; color: #6b7280; font-size: 14px;">
-        ${d.contactTitle || ""} ${d.contactCompany ? `at ${d.contactCompany}` : ""}
+        ${escapeHtml(d.contactTitle || "")} ${d.contactCompany ? `at ${escapeHtml(d.contactCompany)}` : ""}
       </p>
       <p style="margin: 8px 0; color: #374151; font-size: 14px;">
         <strong>Trigger:</strong> ${d.trigger === "job_change" ? "Job Change" : "News"}
-        ${d.newsHeadline ? `: ${d.newsHeadline}` : ""}
+        ${d.newsHeadline ? `: ${escapeHtml(d.newsHeadline)}` : ""}
       </p>
       <div style="margin-top: 12px; padding: 12px; background: white; border-radius: 4px; border-left: 3px solid #3b82f6;">
-        <p style="margin: 0; font-style: italic;">${d.draft}</p>
+        <p style="margin: 0; font-style: italic;">${escapeHtml(d.draft)}</p>
       </div>
       ${
         d.contactEmail
-          ? `<a href="mailto:${d.contactEmail}?body=${encodeURIComponent(d.draft)}" style="display: inline-block; margin-top: 12px; padding: 8px 16px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px;">Send Email</a>`
+          ? `<a href="mailto:${encodeURIComponent(d.contactEmail)}?body=${encodeURIComponent(d.draft)}" style="display: inline-block; margin-top: 12px; padding: 8px 16px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px;">Send Email</a>`
           : ""
       }
     </div>`

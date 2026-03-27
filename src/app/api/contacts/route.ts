@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, desc, like, sql } from "drizzle-orm";
+import { eq, desc, ilike, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { contacts, vips } from "@/db/schema";
 import { randomUUID } from "crypto";
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const conditions = q
-      ? like(contacts.fullName, `%${q}%`)
+      ? ilike(contacts.fullName, `%${q}%`)
       : undefined;
 
     const rows = await db
